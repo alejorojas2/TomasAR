@@ -127,10 +127,10 @@ vsearch --fastq_filter merge.pear.cut_fr.fastq \
         --fastaout merge.pear.maxee1.fasta \
         --fasta_width 0 --threads 4
 ```
-It resulted in 6.94% of the assembled reads discarded due to low quality.
+It resulted in 0.6% of the assembled reads discarded due to low quality.
 
 ```
-5292561 sequences kept (of which 0 truncated), 394977 sequences discarded.
+2770607 sequences kept (of which 0 truncated), 18670 sequences discarded.
 ```
 
 #De-replication and OTU clustering
@@ -138,7 +138,7 @@ It resulted in 6.94% of the assembled reads discarded due to low quality.
 Using vsearch through FAST, reads can be dereplicated to ease the downstream analyses.
 
 ```
-python ~/bin/FAST/fast.py -dereplicate -i merge.pear.maxee1.fasta -o raw.qc.derep -t 4
+python ~/bin/FAST/fast.py -dereplicate -i merge.pear.maxee1.fasta -o raw.qc.derep -t 10
 ```
 A file `raw.qc.derep.txt` containing the information for the OTU map was written. This file is basedon clusters of sequences with  100% similarity.  A seconf file `raw.qc.derep.fasta` is also created that contains the unique sequences after this dereplication step. The summary of the results is presented below:
 
