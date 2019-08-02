@@ -9,7 +9,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Import data
+# Import data
 
 These are the libraries used here:
 
@@ -23,12 +23,66 @@ library(vegan)
 library(readr)
 ```
 
-## Including Plots
+Importing biom file:
 
-You can also embed plots, for example:
+```{r}
+#Import file
+TomAR <- import_biom("otu_table_TomasAR.clean.fungi.biom", refseqfilename = "otu_table_TomasAR.clean.fungi.fasta")
+TomAR
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+#Renaming taxonomy levels on tax_table
+colnames(tax_table(TomAR)) <- c("Kingdom", "Phylum", "Class","Order", "Family", "Genus", "Species")
+
+head(tax_table(TomAR))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Checking sequencing depth and normalizing
+
+```{r}
+
+# Make a data frame with a column for the read counts of each sample
+sample_sum_df <- data.frame(sum = sample_sums(TomAR))
+
+# Histogram of sample read counts
+ggplot(sample_sum_df, aes(x = sum)) + 
+  geom_histogram(color = "black", fill = "indianred") +
+  ggtitle("Distribution of sample sequencing depth") + 
+  xlab("Read counts") +
+  theme(axis.title.y = element_blank())
+
+```
+
+Standardizing by sequencing depth:
+
+```{r}
+#Standardize abundances to the median sequencing depth
+(total <- median(sample_sums(TomAR)))
+standf <- function(x, t=total) round(t * (x/sum(x)))
+TomAR.std <- transform_sample_counts(TomAR, standf)
+```
+
+# Taxa abudance at different rank levels
+
+```{r, fig.height=12, fig.width=10}
+#Sample
+head(sample_data(TomAR.std))
+
+#summarizing by tax rank
+Tom.class <- tax_glom(TomAR.std, "Phylum")
+plot_bar(Tom.class, fill = "Phylum", x = "Samples") + coord_flip() + theme_gray() 
+```
+
+## Exporting to tsv tabel
+```{r}
+TomAR.tsv <- psmelt(TomAR.std)
+
+#Writting tabulated OTU table
+#write_csv2(TomAR.tsv, "TomAR.tsv")
+```
+
+
+### Saving R object
+```{r data_save, warning=FALSE, echo=FALSE}
+save(TomAR, TomAR.std, TomAR.tsv, file = "TomAR_files.rda")
+
+```
