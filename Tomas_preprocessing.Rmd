@@ -66,6 +66,26 @@ Total written (filtered):  1,698,413,769 bp (100.0%)
   Read 2:   849,219,727 bp
 ```
 
+To further clean the reads and focus only on the variable region of ITS, primers ITS1f and ITS could be reomved:
+
+```
+cutadapt -g CTTGGTCATTTAGAGGAAGTAA -a GCTGCGTTCTTCATCGATGC \
+         -o read1.test.fastq -p read2.test.fastq \
+         read1.fastq read2.fastq -e 0.1 \
+         --match-read-wildcards -m 50 -j 10
+```
+
+This results in:
+```
+#Result
+=== Summary ===
+
+Total read pairs processed:          2,821,426
+  Read 1 with adapter:               2,796,053 (99.1%)
+  Read 2 with adapter:                       0 (0.0%)
+Pairs that were too short:                  11 (0.0%)
+Pairs written (passing filters):     2,821,415 (100.0%)
+```
 After removing the Illumina adapters, the reads were assembled using [PEAR]():
 
 ```
@@ -76,45 +96,13 @@ pear -f read1.cut.fastq -r read2.cut.fastq -o merge.pear -j 10
 The results for merging the reads are below, most of the reads were assembled, keeping 97.6% of thre data.  Only a small percentage did not assemble (1.139%), these unassemble reads have reduced quality or the reads do not pair.
 
 ```
-Assembled reads ...................: 2,789,277 / 2,821,425 (98.861%)
-Discarded reads ...................: 0 / 2,821,425 (0.000%)
-Not assembled reads ...............: 32,148 / 2,821,425 (1.139%)
+Assembled reads ...................: 2,784,935 / 2,821,415 (98.707%)
+Discarded reads ...................: 0 / 2,821,415 (0.000%)
+Not assembled reads ...............: 36,480 / 2,821,415 (1.293%)
 Assembled reads file...............: merge.pear.assembled.fastq
 Discarded reads file...............: merge.pear.discarded.fastq
 Unassembled forward reads file.....: merge.pear.unassembled.forward.fastq
 Unassembled reverse reads file.....: merge.pear.unassembled.reverse.fastq
-```
-
-To further clean the reads, a fraction of the SSU and 5.8S could be removed to eliminate redundant bases across the reads that could affect the clustering into OTUs introducing noise due to the similarity of these regios and focusing only on the ITS1 region.  Using the sequence of the ITS1 primer as follows:
-
-```
-#Checking ITS1F
-cutadapt -g CTTGGTCATTTAGAGGAAGTAA \
-         -e 0.1 --match-read-wildcards \
-         -j 10 -o merge.pear.cut_fr1.fastq merge.pear.cut_fr.fastq
-         
-#Result
-=== Summary ===
-
-Total reads processed:               2,789,277
-Reads with adapters:                 2,766,929 (99.2%)
-Reads written (passing filters):     2,789,277 (100.0%)
-
-```
-
-Now, we use a similar approach to remove the 5.8S region from the assembled reads using the ITS2 primer:
-```
-#Checking ITS2
-cutadapt -a GCTGCGTTCTTCATCGATGC \
-         -e 0.1 --match-read-wildcards \
-         -j 10 -o merge.pear.cut_fr12.fastq merge.pear.cut_fr1.fastq
-         
-#Result
-=== Summary ===
-
-Total reads processed:               2,789,277
-Reads with adapters:                    31,396 (1.1%)
-Reads written (passing filters):     2,789,277 (100.0%)
 ```
 
 Using vsearch, low quality sequences can be filtered, using a max expected error (<1):
@@ -122,15 +110,15 @@ Using vsearch, low quality sequences can be filtered, using a max expected error
 - --fasta_width INT   width of FASTA seq lines, 0 for no wrap (80)
 
 ```
-vsearch --fastq_filter merge.pear.cut_fr.fastq \
+vsearch --fastq_filter merge.pear.assembled.fastq \
         --fastq_maxee 1 \
         --fastaout merge.pear.maxee1.fasta \
-        --fasta_width 0 --threads 4
+        --fasta_width 0 --threads 10
 ```
 It resulted in 0.6% of the assembled reads discarded due to low quality.
 
 ```
-2770607 sequences kept (of which 0 truncated), 18670 sequences discarded.
+2767437 sequences kept (of which 0 truncated), 17498 sequences discarded.
 ```
 
 #De-replication and OTU clustering
@@ -140,32 +128,33 @@ Using vsearch through FAST, reads can be dereplicated to ease the downstream ana
 ```
 python ~/bin/FAST/fast.py -dereplicate -i merge.pear.maxee1.fasta -o raw.qc.derep -t 10
 ```
-A file `raw.qc.derep.txt` containing the information for the OTU map was written. This file is basedon clusters of sequences with  100% similarity.  A seconf file `raw.qc.derep.fasta` is also created that contains the unique sequences after this dereplication step. The summary of the results is presented below:
+A file `raw.qc.derep.txt` containing the information for the OTU map was written. This file is basedon clusters of sequences with  100% similarity.  A second file `raw.qc.derep.fasta` is also created that contains the unique sequences after this dereplication step. The summary of the results is presented below:
 
 ```
-Sequences dereplicated, clasped from 5292561 into 656897 sequences.
-Dereplicated OTU size: Max=443690, Min=1, Average=8.
+Original OTU map:
+	 OTU=2145966 (Total Sequences=2767437, Max=2845, Min=1, Ave=1)
+Filtered OTU map:
+	 OTU=179850 (Total Sequences=801321, Max=2845, Min=2, Ave=4)
 ```
-
 Singletons can be removed at this step, since those are artifacts or they can be removed later based on their presence across different samples.  In this case, I will remove singletons here:
 
 ```
 python ~/bin/FAST/fast.py -filter_otu_map \
-                                  -i raw.qc.derep.txt \
+                                  -i raw.qc.test.derep.txt \
                                   -o raw.qc.derep.size2.txt -min_size 2
 ```
 This is the resulting output:
 
 ```
 Original OTU map:
-	 OTU=656897 (Total Sequences=5292561, Max=443690, Min=1, Ave=8)
+	 OTU=2145966 (Total Sequences=2767437, Max=2845, Min=1, Ave=1)
 Filtered OTU map:
-	 OTU=87639 (Total Sequences=4723303, Max=443690, Min=2, Ave=53)
+	 OTU=179850 (Total Sequences=801321, Max=2845, Min=2, Ave=4)
 ```
 
 New sequence file after removing singletons, and adding size label:
 ```
-python ~/bin/FAST/fast.py -pick_seqs -i raw.qc.derep.fasta \
+python ~/bin/FAST/fast.py -pick_seqs -i raw.qc.test.derep.fasta \
                                   -map raw.qc.derep.size2.txt \
                                   -o raw.qc.derep.size2.fasta -sizeout
 ```
@@ -176,17 +165,18 @@ One last thing is to check for chimeras before an OTU analysis is done.
 ```
 vsearch --uchime_ref raw.qc.derep.size2.fasta \
         --nonchimeras raw.qc.derep.size2.uchime.fasta \
-        --db ~/Downloads/sh_qiime_release_s_28.06.2017/sh_refs_qiime_ver7_97_s_28.06.2017.fasta \
-        --sizeout --fasta_width 0 --thread 4
+        --db /data2/unite_qiime/sh_refs_qiime_ver8_99_s_02.02.2019.fasta \
+        --sizeout --fasta_width 0 --thread 10
 ```
 
-The chimera content is low, around 0.8% taking into account abudance information.
+The chimera content is low, around 6.9% taking into account abundance information.
+
 ```
-Found 1784 (2.0%) chimeras, 85524 (97.6%) non-chimeras,
-and 331 (0.4%) borderline sequences in 87639 unique sequences.
+Found 13610 (7.6%) chimeras, 157581 (87.6%) non-chimeras,
+and 8659 (4.8%) borderline sequences in 179850 unique sequences.
 Taking abundance information into account, this corresponds to
-36002 (0.8%) chimeras, 4677009 (99.0%) non-chimeras,
-and 10292 (0.2%) borderline sequences in 4723303 total sequences.
+55641 (6.9%) chimeras, 708496 (88.4%) non-chimeras,
+and 37184 (4.6%) borderline sequences in 801321 total sequences.
 ```
 
 Finally, the OTU clustering could be done setting up a 97% similarity using flag `-id`.
@@ -195,12 +185,12 @@ Finally, the OTU clustering could be done setting up a 97% similarity using flag
 vsearch --cluster_size raw.qc.derep.size2.uchime.fasta \
         --centroids raw.qc.vsearch.fasta \
         --fasta_width 0 -id 0.97 \
-        --sizein --uc raw.qc.uc.txt --threads 4
+        --sizein --uc raw.qc.uc.txt --threads 10
 ```
 
-There are 6580 OTUs, and there are no singletons, since those were removed previously.
+There are 943 OTUs, and there are no singletons, since those were removed previously.
 ```
-Clusters: 6580 Size min 2, max 594092, avg 13.0
+Clusters: 943 Size min 2, max 117604, avg 167.1
 Singletons: 0, 0.0% of seqs, 0.0% of clusters
 ```
 
@@ -247,23 +237,53 @@ python ~/bin/FAST/fast.py -make_otu_table \
                                   -o otu_table.txt -rep rep_seq.fasta
 ```
 
-#Assigning taxonomy
+# Assigning taxonomy
 
-We can now align our OTU sequences to the UNITE database using VSEARCH. Using the `--userout` option the result will be written as "Name of OTU + Aligned UNITE record + Length of OTU sequences + Length of OTU sequences aligned to reference + Similarity".
-
-```
-vsearch --usearch_global rep_seq.fasta \
-        -db ~/Downloads/sh_qiime_release_s_28.06.2017/sh_general_release_09.02.2014.fasta \
-        --userout taxa.vsearch.txt \
-        --userfields query+target+ql+pairs+id --id 0.6
-```
-
-Using the following command, any OTU that align more than 70% of its sequences to a reference with a similarity higher than 75% were kept. I picked these threshold based on the paper of Tedersoo et al. 2015.
+We can now align our OTU sequences to the UNITE database using Blast. 
 
 ```
-python ~/bin/FAST/fast.py -assign_taxonomy \
-                                  -otu otu_table.txt \
-                                  -tax rep.otu.txt \
-                                  -o otu_table.fungi.txt \
-                                  -match_length 0.7 -pident 75
+parallel_assign_taxonomy_blast.py -O 16 -t /data2/unite_qiime/sh_taxonomy_qiime_ver8_dynamic_s_02.02.2019.txt \
+                                                                  -r /data2/unite_qiime/sh_refs_qiime_ver8_dynamic_s_02.02.2019.fasta \
+                                                                  -i rep_seq.fasta \
+                                                                  -o blast_all_assigned_taxonomy
 ```
+
+# Make otu table biom file
+Using qiime1, a biom file is created and the taxonomy and sample data could be added:
+````
+#Create biom file
+biom convert --table-type="OTU table" -i otu_table_mapping.txt -o otu_table_mapping.biom --to-json
+
+#adding taxonomy
+biom add-metadata --sc-separated taxonomy --observation-header OTUID,taxonomy \
+				  --observation-metadata-fp blast_all_assigned_taxonomy/rep_seq_tax_assignments.txt \
+				  -i otu_table_TomAR.biom -o otu_table_TomAR.tax.biom --output-as-json
+				  
+#adding sample data
+biom add-metadata -m read_map.txt -i otu_table_TomAR.tax.biom -o otu_table_TomAR.tax.sample.biom --output-as-json
+```
+
+# Filter NTC from samples
+```
+#create Biom for negative controls (NTCs)
+filter_samples_from_otu_table.py -i otu_table_TomAR.tax.sample.biom -o otu_table_NTC.biom -m read_map.txt -s "Samples:NTC"
+
+#Biom without NTC samples
+filter_samples_from_otu_table.py -i otu_table_TomAR.tax.sample.biom -o otu_table_TomAR1.tax.sample.biom -m read_map.txt -s "Samples:AR.Tom"
+
+#remove non zeros from NTCs
+filter_otus_from_otu_table.py -i otu_table_NTC.biom -o otu_table_NTC_Non.biom -n 1
+
+#Convert NTC_biom file to a tab-separated txt table
+biom convert -i otu_table_NTC_Non.biom -o otus_to_remove.txt --to-tsv
+
+#Filter NTC OTUS using txt file from NTC samples
+filter_otus_from_otu_table.py -i otu_table_TomAR1.tax.sample.biom -o otu_table_TomasAR.clean.biom -e otus_to_remove.txt
+
+#Filter non-zero samples
+filter_otus_from_otu_table.py -i otu_table_TomasAR.clean.biom -o otu_table_TomasAR.clean1.biom -n 1
+
+#Check counts in final biom file
+biom summarize-table -i otu_table_TomasAR.clean1.biom
+```
+
