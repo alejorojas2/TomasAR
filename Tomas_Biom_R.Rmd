@@ -82,7 +82,6 @@ TomAR.tsv <- psmelt(TomAR.std)
 
 
 ### Saving R object
-```{r data_save, warning=FALSE, echo=FALSE}
-save(TomAR, TomAR.std, TomAR.tsv, file = "TomAR_files.rda")
-
+```{r data_save, warning=FALSE}
+#save(TomAR, TomAR.std, TomAR.tsv, file = "TomAR_files.rda")
 ```
