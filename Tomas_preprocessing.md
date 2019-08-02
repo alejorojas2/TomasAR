@@ -1,8 +1,3 @@
----
-title: "Tomas Samples AR"
-output: html_notebook
----
-
 ## Pre-processing
 
 Preliminary analysis of soil samples were done using [FAST](https://github.com/ZeweiSong/FAST), reads were trimmed and processed using cutadapt and vsearch.
