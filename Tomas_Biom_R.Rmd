@@ -27,7 +27,7 @@ Importing biom file:
 
 ```{r}
 #Import file
-TomAR <- import_biom("otu_table_TomasAR.clean.fungi.biom", refseqfilename = "otu_table_TomasAR.clean.fungi.fasta")
+TomAR <- import_biom("otu_table_TomasARv2.fungi.biom", refseqfilename = "otu_table_TomasARv2.fungi.fasta")
 TomAR
 
 #Renaming taxonomy levels on tax_table
@@ -70,6 +70,10 @@ head(sample_data(TomAR.std))
 #summarizing by tax rank
 Tom.class <- tax_glom(TomAR.std, "Phylum")
 plot_bar(Tom.class, fill = "Phylum", x = "Samples") + coord_flip() + theme_gray() 
+
+
+basidio <- subset_taxa(TomAR, Class=="c__Agaricomycetes")
+plot_bar(basidio, fill = "Genus") + coord_flip()
 ```
 
 ## Exporting to tsv tabel
@@ -85,3 +89,21 @@ TomAR.tsv <- psmelt(TomAR.std)
 ```{r data_save, warning=FALSE}
 #save(TomAR, TomAR.std, TomAR.tsv, file = "TomAR_files.rda")
 ```
+
+```{r}
+source("fg_assign.r")
+
+str_charc <- function(x) { gsub('[f,p,c,o,k,g,s]__', '', x)}
+
+test <- data.frame(tax_table(TomAR)) %>% 
+  dplyr::rename(kingdom = Kingdom, phylum = Phylum, class = Class, order = Order, family = Family, genus = Genus, species = Species) %>% rownames_to_column( var = "OTU_ID") %>%
+  mutate_all(.funs = str_charc) %>%
+  column_to_rownames("OTU_ID")
+
+
+#test.clean <- data.frame(lapply(test, function(x) gsub('[f,p,c,o,k,g,s]__', '', x)))
+                    
+test.assign <- fg_assign(test)
+
+```
+
