@@ -69,7 +69,7 @@ head(sample_data(TomAR.std))
 
 #summarizing by tax rank
 Tom.class <- tax_glom(TomAR.std, "Phylum")
-plot_bar(Tom.class, fill = "Phylum", x = "Samples") + coord_flip() + theme_gray() 
+plot_bar(Tom.class, fill = "Phylum") + coord_flip() + theme_gray() 
 
 
 basidio <- subset_taxa(TomAR, Class=="c__Agaricomycetes")
