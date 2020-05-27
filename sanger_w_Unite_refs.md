@@ -19,7 +19,7 @@ makeblastdb -in sh_general_release_dynamic_s_04.02.2020.fasta -dbtype 'nucl' -ou
 Then the sanger sequences were blasted against the blast database from the previous step
 
 ```
-blastn -db unite_040220 -query Milani_Sanger_GoodSequences.fasta -out tax_Tomas_sanger.txt -outfmt "6 std stitle"
+blastn -db unite_040220 -query Milani_Sanger_GoodSequences.fasta -out tax_Tomas_sanger.txt -outfmt "6 std sseqid stitle" -max_target_seqs 1
 ```
 
 Now, the output file will be parsed to generate the taxonomy file

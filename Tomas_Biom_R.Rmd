@@ -76,20 +76,21 @@ basidio <- subset_taxa(TomAR, Class=="c__Agaricomycetes")
 plot_bar(basidio, fill = "Genus") + coord_flip()
 ```
 
-## Exporting to tsv tabel
+## Exporting to tsv table
 ```{r}
-TomAR.tsv <- psmelt(TomAR.std)
+TomAR.tsv <- psmelt(TomAR)
 
 #Writting tabulated OTU table
-#write_csv2(TomAR.tsv, "TomAR.tsv")
+write_csv2(TomAR.tsv, "TomAR_original.tsv")
 ```
-
 
 ### Saving R object
 ```{r data_save, warning=FALSE}
 #save(TomAR, TomAR.std, TomAR.tsv, file = "TomAR_files.rda")
 ```
 
+
+### Assigning guild by FunGuild
 ```{r}
 source("fg_assign.r")
 
@@ -104,6 +105,67 @@ test <- data.frame(tax_table(TomAR)) %>%
 #test.clean <- data.frame(lapply(test, function(x) gsub('[f,p,c,o,k,g,s]__', '', x)))
                     
 test.assign <- fg_assign(test)
+test.assign.df <- rownames_to_column(test.assign, "OTU")
 
+```
+
+#### Exporting funguild results
+```{r}
+#Adding funguild info to psmelt table
+TomAR_guild <- left_join(TomAR.tsv, test.assign.df, by="OTU")
+
+#Writting tabulated OTU table
+write_csv2(TomAR_guild, "TomAR_original_guild.tsv")
+```
+
+
+## Checking OTUs when merged with root tips and sporcarps
+
+```{r}
+#filtered
+TomAR_filt <- import_biom("otu_table_TomasARvfiltered.fungi.biom")
+TomAR_filt
+
+#NO filtered
+TomAR_NOfilt <- import_biom("otu_table_TomasARvNofilt.fungi.biom")
+TomAR_NOfilt
+
+#Renaming taxonomy levels on tax_table
+colnames(tax_table(TomAR_filt)) <- c("Kingdom", "Phylum", "Class","Order", "Family", "Genus", "Species")
+colnames(tax_table(TomAR_NOfilt)) <- c("Kingdom", "Phylum", "Class","Order", "Family", "Genus", "Species")
+
+head(tax_table(TomAR_filt))
+head(tax_table(TomAR_NOfilt))
+```
+
+
+```{r}
+source("fg_assign.r")
+
+str_charc <- function(x) { gsub('[f,p,c,o,k,g,s]__', '', x)}
+
+test_filt <- data.frame(tax_table(TomAR_filt)) %>% 
+  dplyr::rename(kingdom = Kingdom, phylum = Phylum, class = Class, order = Order, family = Family, genus = Genus, species = Species) %>% rownames_to_column( var = "OTU_ID") %>%
+  mutate_all(.funs = str_charc) %>%
+  column_to_rownames("OTU_ID")
+
+test_NoFilt <- data.frame(tax_table(TomAR_NOfilt)) %>% 
+  dplyr::rename(kingdom = Kingdom, phylum = Phylum, class = Class, order = Order, family = Family, genus = Genus, species = Species) %>% rownames_to_column( var = "OTU_ID") %>%
+  mutate_all(.funs = str_charc) %>%
+  column_to_rownames("OTU_ID")
+
+                    
+test.assign.filt <- fg_assign(test_filt) %>% rownames_to_column("OTU")
+test.assign.no_filt <- fg_assign(test_NoFilt) %>% rownames_to_column("OTU")
+```
+
+```{r}
+#Adding funguild info to psmelt table
+TomAR_filt_guild <- psmelt(TomAR_filt) %>% left_join(., test.assign.filt, by="OTU")
+TomAR_nofilt_guild <- psmelt(TomAR_NOfilt) %>% left_join(., test.assign.no_filt, by="OTU")
+
+#Writting tabulated OTU table
+write_csv2(TomAR_filt_guild, "TomAR_filt_guild.tsv")
+write_csv2(TomAR_nofilt_guild, "TomAR_Nofilt_guild.tsv")
 ```
 
